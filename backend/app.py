@@ -2,7 +2,9 @@ import flask
 from flask import Flask,request, jsonify, render_template, request, redirect, url_for, send_file, Response
 import os
 import requests
-from app5 import OD
+#from app5 import OD
+from app9 import OD2
+from app10 import OD3
 import torch
 import numpy as np
 import cv2
@@ -14,6 +16,9 @@ from threading import Thread
 import asyncio
 import time
 from flask_cors import CORS
+import globals2
+loop = None
+
 '''
 with requests.Session() as session:
     query = {
@@ -25,7 +30,7 @@ with requests.Session() as session:
         print("login sucess")
     else:
         print("login failed")
-        '''
+'''
 '''
 async def time2(websocket, path):
         
@@ -75,10 +80,23 @@ app.run(debug=True,host="0.0.0.0")
 
 
 @app.route('/localFile', methods=['POST'])
-def upload_file():
-    print("hi2")
+def upload_file(): 
+    print("ljljljl")
     uploaded_file = request.files['file']
-    print("hi1")
+    model = request.args.get('model')
+    model_name = ""
+    print(model, 0)
+    if int(model) == int(0):
+      print("wtf?")
+      model_name = "yolov5\\model\\Weapon\\best.pt"
+    elif int(model) == int(1):
+      model_name = "yolov5/model/UAV/best.pt"
+    else:
+      model_name = "Analytics-_App-main/container_only_train.pt"
+    
+    print("hi")
+    print(model)
+    print(model_name)
     if uploaded_file.filename != '':
         uploaded_file.save(uploaded_file.filename)
     print("ops")
@@ -88,15 +106,119 @@ def upload_file():
     ip1 = request.remote_addr
     print(ip1)
     print("ops2")
-    response = Response(ip1)
+    response = jsonify(success=True)
+    #print(response1.content)
+    #source = response1.json()['rtspURL']
+    print(1)
+    source = uploaded_file.filename
+    print(2)
+    global loop
+    global server2
+    print(loop)
+    #if loop is not None:
+      #loop.close()
+      #loop = None
+      #print("laaaaaaaaaaaaaaa")
+      #server2.close()
+      #loop.run_until_complete(server.wait_closed())
+      #loop.stop()
+      #loop = None
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    detector = None
+    #global server
+    if int(model) == int(2):
+      print("in if model == 2")
+      detector = OD3(capture_index=source, model_name=model_name,ip=ip1)
+    else:    
+      detector = OD2(capture_index=source, model_name=model_name,ip=ip1,loop=loop)
+    print(3)
+    if globals2.server is not None:
+      globals2.server.close()
+      globals2.server = None
+    #start_server = websockets.serve(detector.time1, port=8585)
+  
+    async def serve():
+        try:
+          print("hi44")
+          #global server
+          globals2.server = await websockets.serve(detector.time1, port=8585)
+          #server.close()
+          print("hi33")
+          await globals2.server.wait_closed()
+          print("after awaint server.wait_closed()")
+        except WindowsError as e:
+                  print("windows error catched")
+                  #server = await websockets.serve(detector.time1, port=8585)
+                  #await server.wait_closed()
+        except OSError as error :
+                  print(error)
+                  print("File descriptor is not associated with any terminal device")
+        except websockets.exceptions.ConnectionClosedError:
+                  print("ops1")
+                  print("Client disconnected.  Do cleanup")
+                  websockets.legacy.protocol.WebSocketCommonProtocol.close()
+                  globals2.server.close()
+                  websockets.terminate()
+                  loop.stop()
+                  loop.close()
+                  #self.loop.stop()
+        except Exception as e:
+                  print("ops2")
+                  #websockets.legacy.protocol.WebSocketCommonProtocol.close()
+                  print("Client disconnected.  Do cleanup")
+                  websockets.legacy.protocol.WebSocketCommonProtocol.close()
+                  globals2.server.close()
+                  websockets.terminate()
+                  loop.stop()
+                  loop.close()
+                  '''
+                  server.close()
+                  websockets.terminate()
+                  loop.stop()
+                  loop.close()
+                  '''
+                  #self.loop.stop()
+        except:
+                  print("op3")
+                  #websockets.legacy.protocol.WebSocketCommonProtocol.close()
+                  print("Client disconnected.  Do cleanup")
+                  websockets.legacy.protocol.WebSocketCommonProtocol.close()
+                  globals2.server.close()
+                  websockets.terminate()
+                  loop.stop()
+                  loop.close()
+                  '''
+                  server.close()
+                  websockets.terminate()
+                  loop.stop()
+                  loop.close()
+                  '''
+                  #self.loop.stop()
+        print("ops not done")  
     @response.call_on_close
     def sendStream():
-        #print(response1.content)
-        #source = response1.json()['rtspURL']
-            source = uploaded_file.filename
-            detector = OD(capture_index=source, model_name='Analytics-_App-main/container_only_train.pt',ip=ip1)
+          
+            asyncio.run(serve())
+            print("send stream final?")
+            # Start the server, add it to the event loop
+            # Registered our websocket connection handler, thus run event loop forever
+            '''
+            try:
+                  server2 = asyncio.get_event_loop().run_until_complete(start_server)
+                  asyncio.get_event_loop().run_forever()
+            except asyncio.CancelledError:
+              print('Tasks has been canceled')
+            except websockets.exceptions.ConnectionClosed:
+              #start_server.cancel()
+              #loop.stop()
+              print("Shutdown complete ...") 
+              #loop.close()
+            #loop.stop()
+            print(4)
             print("entered")
-            detector()
+            #detector()
+            '''
     return response
 
 @app.route("/get_my_ip", methods=["GET"])
